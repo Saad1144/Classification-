@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EcoScan - IA Tri Selectif</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background-color: #e8f5e9; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            margin: 0;
+        }
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+            width: 350px;
+        }
+        h1 { color: #2e7d32; }
+        .preview {
+            width: 100%;
+            height: 200px;
+            background-color: #f1f1f1;
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 2px dashed #ccc;
+        }
+        .preview img { width: 100%; height: 100%; object-fit: cover; }
+        button {
+            background-color: #2e7d32;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            width: 100%;
+        }
+        button:hover { background-color: #1b5e20; }
+        #result { margin-top: 20px; font-weight: bold; }
+        .loading { color: #f57f17; }
+        .success { color: #2e7d32; }
+        .error { color: #c62828; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h1>♻️ EcoScan</h1>
+        <p>Classifiez vos déchets avec l'IA</p>
+        
+        <input type="file" id="imageInput" accept="image/*" style="display: none;">
+        <div class="preview" id="previewContainer">
+            <span style="color: #999;">Aperçu image</span>
+        </div>
+        
+        <button onclick="document.getElementById('imageInput').click()">Choisir une photo</button>
+        <br><br>
+        <button onclick="analyzeImage()" id="btnAnalyze" disabled>Analyser</button>
+        
+        <div id="result"></div>
+    </div>
+
+    <script>
+        const imageInput = document.getElementById('imageInput');
+        const previewContainer = document.getElementById('previewContainer');
+        const btnAnalyze = document.getElementById('btnAnalyze');
+        let selectedFile = null;
+
+        // Afficher l'aperçu quand un fichier est choisi
+        imageInput.addEventListener('change', function() {
+            if (this.files && this.files[0]) {
+                selectedFile = this.files[0];
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    previewContainer.innerHTML = `<img src="${e.target.result}" alt="Aperçu">`;
+                }
+                reader.readAsDataURL(selectedFile);
+                btnAnalyze.disabled = false;
+                document.getElementById('result').innerHTML = "";
+            }
+        });
+
+        async function analyzeImage() {
+            const resultDiv = document.getElementById('result');
+            
+            if (!selectedFile) {
+                alert("Veuillez d'abord choisir une image !");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+
+            resultDiv.innerHTML = '<p class="loading">🔄 Analyse en cours...</p>';
+            btnAnalyze.disabled = true;
+
+            try {
+                // URL du backend Python
+                const response = await fetch('http://127.0.0.1:8000/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) throw new Error("Erreur de connexion au serveur");
+
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <h2>${data.label.toUpperCase()}</h2>
+                        <p>${data.message}</p>
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">Erreur : ${error.message}<br><small>Assurez-vous que le backend (main.py) est lancé.</small></p>`;
+            } finally {
+                btnAnalyze.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
